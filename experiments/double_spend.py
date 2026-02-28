@@ -23,12 +23,12 @@ def simulate_double_spend():
         asset = tx.data
         
         if asset in ledger:
-            print("❌ DOUBLE SPEND DETECTED")
+            print("DOUBLE SPEND DETECTED")
             print("Previous:", ledger[asset])
             print("New     :", tx.txid)
         else:
             ledger[asset] = tx.txid
-            print("✅ Transaction accepted:", tx.txid)
+            print("Transaction accepted:", tx.txid)
 
 
 if __name__ == "__main__":

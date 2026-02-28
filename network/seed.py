@@ -7,6 +7,10 @@ peers = set()
 
 
 def handle_client(conn):
+    """
+    Handles incoming connections from Peer Nodes. 
+    Manages both new peer registration and liveness reporting.
+    """
     global peers
 
     data = conn.recv(1024).decode()
@@ -29,6 +33,10 @@ def handle_client(conn):
 
 
 def start_seed(host, port):
+    """
+    Initializes the Seed Node server using Socket Programming.
+    The seed acts as a bootstrapping point for the petroleum supply chain ledger.
+    """
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind((host, port))
     server.listen()

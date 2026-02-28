@@ -2,11 +2,22 @@ import hashlib
 
 
 def hash_pair(a, b):
+    """
+    Concatenates two hex strings and returns their SHA-256 hash.
+    This supports the integrity requirements where TxIDs and block hashes 
+    must ensure the 'Avalanche Effect'.
+    """
     return hashlib.sha256((a + b).encode()).hexdigest()
 
 
 def merkle_root(txids):
-
+    """
+    Computes the Merkle Root for a list of transaction IDs (TxIDs).
+    
+    As per Task 2, this root summarizes all transactions in a block.
+    The function iteratively hashes pairs of SHA-256 strings until a single 
+    representative hash (the root) remains.
+    """
     # copy list
     level = txids[:]
 
@@ -47,7 +58,13 @@ if __name__ == "__main__":
 
 
 def merkle_proof(txids, index):
-
+    """
+    Generates a Merkle Proof for a specific transaction at a given index.
+    
+    In the context of the Petroleum Supply Chain Ledger, this allows Light Nodes 
+    to verify a transaction's existence without downloading the entire 8-transaction 
+    block body.
+    """
     proof = []
     level = txids[:]
 

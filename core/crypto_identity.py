@@ -18,10 +18,18 @@ INF = (None, None)
 # ---------------- Basic Math ----------------
 
 def mod_inv(x, m):
+    """
+    Computes the modular multiplicative inverse using Fermat's Little Theorem.
+    Essential for point doubling and ECDSA signature generation.
+    """
     return pow(x, -1, m)
 
 
 def point_add(P, Q):
+    """
+    Performs Elliptic Curve point addition.
+    Used as the primitive operation for the Double-and-Add algorithm.
+    """
     if P == INF:
         return Q
     if Q == INF:
@@ -45,6 +53,10 @@ def point_add(P, Q):
 
 
 def scalar_mult(k, P):
+    """
+    Implementation of the Double-and-Add algorithm.
+    Derives the Public Key (pk) by multiplying the Secret Key (sk) with the generator G.
+    """
     result = INF
     addend = P
 
@@ -60,12 +72,21 @@ def scalar_mult(k, P):
 # ---------------- Key Generation ----------------
 
 def generate_keypair():
+    """
+    Generates a 256-bit Secret Key (sk) using a random number 
+    and SHA-256 hash. Derives the Public Key (pk) via scalar multiplication.
+    """
     sk = int(hashlib.sha256(secrets.token_bytes(32)).hexdigest(), 16) % n
     pk = scalar_mult(sk, G)
     return sk, pk
 
 
 def address_from_pk(pk):
+    """
+    Derives the Wallet Address.
+    Takes the SHA-256 hash of the Public Key and uses the last 16 bits 
+    represented in a 4-digit hexadecimal format (e.g., 0x9e1c).
+    """
     pk_bytes = str(pk[0]).encode() + str(pk[1]).encode()
     h = hashlib.sha256(pk_bytes).hexdigest()
     return "0x" + h[-4:]
@@ -74,6 +95,10 @@ def address_from_pk(pk):
 # ---------------- ECDSA ----------------
 
 def sign(msg, sk):
+    """
+    Signs a transaction using the sender's sk.
+    Produces a signature pair (r, s) to ensure non-repudiation and data integrity.
+    """
     z = int(hashlib.sha256(msg.encode()).hexdigest(), 16)
 
     while True:
@@ -91,6 +116,11 @@ def sign(msg, sk):
 
 
 def verify(msg, signature, pk):
+    """
+    Signature Verification:
+    Uses the sender's Public Key (pk) to verify the (r, s) signature pair.
+    A valid result proves the sender authorized the transaction and it is untampered.
+    """
     r, s = signature
     if not (1 <= r < n and 1 <= s < n):
         return False

@@ -4,7 +4,10 @@ from core.merkle import merkle_root
 
 
 class Block:
-
+    """
+    Represents a Block in the petroleum supply chain ledger.
+    Implements the core block structure required for PoW mining and validation.
+    """
     def __init__(self, prev_hash, transactions):
         self.prev_hash = prev_hash
         self.transactions = transactions
@@ -17,10 +20,18 @@ class Block:
         self.hash = self.compute_hash()
 
     def compute_hash(self):
+        """
+        Uses SHA-256 to create a digital fingerprint of the block.
+        Ensures tamper-resistance; changing any data results in a completely different hash.
+        """
         block_string = f"{self.prev_hash}{self.merkle}{self.timestamp}"
         return hashlib.sha256(block_string.encode()).hexdigest()
 
     def to_dict(self):
+        """
+        Prepares block data for Gossip Protocol propagation and 
+        database storage.
+        """
         return {
             "prev_hash": self.prev_hash,
             "timestamp": self.timestamp,
@@ -40,6 +51,10 @@ class Block:
 
     @staticmethod
     def from_dict(data):
+        """
+        Reconstructs a block from received network messages 
+        during the syncing or Gossip process.
+        """
         from core.transaction import Transaction
 
         txs = []
