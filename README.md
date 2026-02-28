@@ -1,133 +1,193 @@
-# Blockchain Assignment v03 – Petroleum Supply Chain Ledger
+#  Blockchain-Based Petroleum Supply Chain Ledger
 
-## What's New in v03
+> **CSL7490 — Assignment 1**  
 
-### 1. Mempool (`core/mempool.py`)
-A thread-safe transaction pool seeded with realistic **petroleum supply-chain events**:
-- Upstream: exploration permits, well drilling, crude extraction
-- Midstream: pipeline shipments, tanker voyages, storage fills
-- Downstream: refinery intake/output, quality certificates, fuel deliveries
-- Financial: invoices, payments, letters of credit, royalty payments, carbon offsets
+A full-stack blockchain simulation modelling a petroleum supply chain, built on a custom peer-to-peer TCP network. Implements secp256k1 cryptographic identities, ECDSA-signed transactions, gossip protocol propagation, simulated Proof-of-Work mining, and seven experimental analyses.
 
-Each node seeds the mempool at startup and continuously generates new transactions in the background.
 
-### 2. Block Mining (assignment spec)
-`mining/pow_miner.py` and `network/node.py` now fully implement the spec:
+##  Project Overview
 
-```
-meanTk  = 1.0 / interarrival_time
-lambda  = nodeHashPower * meanTk / 100.0
-Tk      = random.expovariate(lambda)
-```
+This project implements a blockchain network from scratch, simulating a petroleum supply chain where producers, pipeline operators, refineries, and distributors record verifiable, tamper-proof supply events on a distributed ledger.
 
-**Node lifecycle:**
-1. Register with seeds, get peer list
-2. Seed mempool with petroleum transactions
-3. **Sync chain** (request B0..Bk from network) before mining
-4. **Process pending queue** until empty
-5. **Mine** (draw Exp(λ) waiting time)
-   - Timer fires → create block, store, broadcast
-   - Abort() called (longer chain received) → return txs to mempool, restart
-6. Always mine on the **longest chain** available locally
+The system is composed of:
 
-### 3. Node Roles and Hash Powers
-| Node | Port | Role | Hash Power |
-|------|------|------|-----------|
-| node1 | 9001 | Upstream Producer | 30% |
-| node2 | 9002 | Pipeline Operator | 20% |
-| node3 | 9003 | Refinery (dominant miner) | 40% |
-| node4 | 9004 | Trading Desk | 5% |
-| node5 | 9005 | Regulatory/Auditor | 5% |
-
-Total hash power = 100%.
+- **Seed Nodes** — Bootstrapping servers that maintain and distribute the peer list.
+- **Peer Nodes** — Full nodes that generate identities, create and sign transactions, mine blocks, and propagate data via gossip.
+- **Blockchain DB** — A per-node SQLite database storing the local copy of the chain.
+- **Experiment Scripts** — Standalone scripts demonstrating cryptographic and consensus properties.
 
 ---
 
-## How to Run
+## Features
 
-### Prerequisites
-```bash
-pip install pytest   # optional, for test runner
-```
-
-### Step 1 – Start Seed Nodes (3 terminals)
-```bash
-python network/seed.py 8000
-python network/seed.py 8001
-python network/seed.py 8002
-```
-
-### Step 2 – Start Peer Nodes (5 terminals)
-```bash
-python run_node1.py   # Upstream Producer  (30% hash power)
-python run_node2.py   # Pipeline Operator  (20% hash power)
-python run_node3.py   # Refinery           (40% hash power)
-python run_node4.py   # Trading Desk        (5% hash power)
-python run_node5.py   # Regulatory/Auditor  (5% hash power)
-```
-
-Each node prints its chain height, mempool size, and pending queue depth every 5 seconds.
+| Feature | Description |
+|---|---|
+| secp256k1 Key Generation | Private key from SHA-256(random), public key via Double-and-Add |
+| Wallet Address | Last 16 bits of SHA-256(pubkey) in `0x????` hex format |
+| ECDSA Signatures | Sign and verify every transaction; non-repudiation guaranteed |
+| P2P Registration | New peers register with ⌊n/2⌋+1 seeds for Byzantine-fault tolerance |
+| Gossip Protocol | Message-list deduplication, signature validation before relay |
+| Liveness Monitoring | 13-second ping/pong; 3 misses → Dead Node report to seeds |
+| PoW Simulation | Exponential random variable model; lambda scaled by hash power % |
+| Blockchain Sync | Pending queue + IBD-style chain download for newly joined nodes |
+| Merkle Trees | SHA-256 binary hash tree; O(log n) membership proofs |
+| Bit Commitment | Hiding + binding scheme C = H(m ∥ r) for supply chain coordination |
 
 ---
 
-## Running the Tests
 
+##  Prerequisites
+
+| Requirement | Version | Purpose |
+|---|---|---|
+| Python | 3.10 or higher | Runtime |
+| pip | Latest | Package management |
+
+Check your Python version:
 ```bash
-# From the project root
-python tests/test_block_mining.py
-
-# Or with pytest
-python -m pytest tests/test_block_mining.py -v
+python3 --version
 ```
-
-### Test Coverage (28 tests, all Block Mining requirements)
-
-| Req | Description |
-|-----|-------------|
-| R1  | Exp samples are positive; mean within 30% of theoretical |
-| R2  | Lambda formula: `lambda = nodeHashPower * meanTk / 100` |
-| R3  | Higher hash_power → larger lambda |
-| R4  | Higher lambda → shorter expected wait |
-| R5  | `mine()` returns True when timer expires |
-| R6  | `mine()` returns False when `abort()` called |
-| R7  | Fresh Exp draw after abort; second mine can succeed |
-| R8  | Pending queue is unbounded |
-| R9  | `process_pending_queue()` appends valid block |
-| R10 | Longer chain arrival aborts current mining |
-| R11 | `mine_loop` waits while `_syncing=True` |
-| R12 | Mined block stored in chain + broadcast |
-| R13 | Transactions returned to mempool on abort |
-| R14 | Node adopts longest chain (fork resolution) |
-| R15 | Blocks with timestamp ±1 hour: accepted/rejected correctly |
-| R16 | Blocks with invalid TX signatures rejected |
-| R17 | Mempool seeds petroleum supply-chain transactions |
-| R18 | Mempool deduplicates by txid |
-| R19 | `mempool.take()` removes transactions from pool |
-| R20 | `mempool.remove()` purges confirmed txids |
 
 ---
 
-## File Structure
+## Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/m25cse020-gif/blockchain-assignment_v01.git
+cd blockchain-assignment_v01
 ```
-core/
-  block.py          – Block data structure
-  blockchain.py     – Persistent chain
-  crypto_identity.py – secp256k1 key gen, ECDSA sign/verify
-  mempool.py        – NEW: thread-safe tx pool + petroleum tx generator
-  merkle.py         – Merkle tree / proof
-  transaction.py    – Signed transaction
 
-mining/
-  pow_miner.py      – UPDATED: Miner with Exp(λ) timer + abort event
+### 2. (Recommended) Create a Virtual Environment
 
-network/
-  node.py           – UPDATED: Full Block Mining spec + mempool integration
-  seed.py           – Seed server
-
-tests/
-  test_block_mining.py – NEW: 28-requirement test suite
-
-run_node{1-5}.py    – UPDATED: node configs with hash power + roles
-experiments/        – Assignment tasks 1-6
-plots/              – Task 7 mining analysis
+```bash
+python3 -m venv venv
+source venv/bin/activate          # macOS / Linux
+venv\Scripts\activate             # Windows
 ```
+
+### 3. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+**`requirements.txt` contents:**
+```
+cryptography>=41.0.0     # secp256k1, ECDSA, SHA-256 (via hazmat primitives)
+numpy>=1.26.0            # Exponential RV generation (Task 7)
+matplotlib>=3.8.0        # Plot generation (Task 7)
+```
+
+Install manually if needed:
+```bash
+pip install cryptography numpy matplotlib
+```
+
+
+##  Running the Simulation
+
+Open a **separate terminal** for each node. All commands are run from the project root.
+
+### Step 1 — Start Seed Nodes
+
+```bash
+# Terminal 1
+python3 network/seed.py 8000
+
+# Terminal 2
+python3 network/seed.py 8001
+
+# Terminal 3
+python3 network/seed.py 8002
+```
+
+Expected output per seed:
+```
+[SEED :8000] Listening...
+```
+
+---
+
+### Step 2 — Start Peer Nodes
+
+Each peer node requires `--seeds` (comma-separated list of seed addresses) and `--port`:
+
+```bash
+# on different Terminals
+python3 run_node1.py # Creates a transaction and mines
+python3 run_node2.py # Passive listener/miner
+python3 run_node3.py # 51% hash power node
+python3 run_node4.py
+python3 run_node5.py
+
+
+### Stopping the Simulation
+
+Press `Ctrl+C` in each terminal. Seed nodes should be stopped last.
+
+---
+
+##  Running Experiments
+
+All experiment scripts are standalone and do not require a live network.
+
+### Task 1 — Avalanche Effect
+```bash
+python3 experiments/avalanche.py
+```
+
+
+### Task 2 — Merkle Tree and Proof
+```bash
+python3 experiments/merkle_proof.py
+```
+
+
+### Task 3 — Double-Spend Simulation
+```bash
+python3 experiments/double_spend.py
+```
+
+
+### Task 4 — 51% Attack Simulation
+refer report
+
+### Task 5 — Bit Commitment Scheme
+```bash
+python3 experiments/commitment.py
+```
+
+### Task 6 — Difficulty and Leading Zeros Analysis
+```bash
+python3 experiments/leading_zero_simulation.py
+```
+
+
+### Task 7 — Stochastic Mining Plots
+```bash
+python3 plots/mining_analysis.py
+```
+**Output:** Two PNG files saved in the current directory:
+- `waiting_time_dist.png` — Histogram of 100 mining waiting times with theoretical Exp(λ) PDF overlay.
+- `lambda_vs_hashpower.png` — Lambda and mean waiting time as functions of hash power percentage (1%–100%).
+
+---
+
+
+
+## 👥 Authors
+
+| Roll Number | Name |
+|---|---|
+| `M25CSE018` | `Mangalton Okram` |
+| `M25CSE020` | `Nishant Chourasia` |
+| `M25CSE028` | `Sarita Mandal` |
+
+
+---
+
+## 📄 License
+
+This project is submitted as academic coursework for CSL7490. All code is original work by the group members listed above.
